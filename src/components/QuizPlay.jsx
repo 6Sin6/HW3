@@ -6,55 +6,60 @@ import { database } from '../firebase'; // Import database from firebase.js
 import confetti from 'canvas-confetti'; // Import the confetti library
 
 const QuizPlay = ({ quizId }) => {
-  const [quiz, setQuiz] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState(null);
+  const [quiz, setQuiz] = useState(null); // State to store the current quiz
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // Index of the current question
+  const [selectedOption, setSelectedOption] = useState(null); // Selected option for the current question
   const [timeLeft, setTimeLeft] = useState(60); // Timer for 1 minute
-  const [answers, setAnswers] = useState([]);
+  const [answers, setAnswers] = useState([]); // Store answers for the quiz
   const { state } = useGlobal(); 
-  const user=state.GlobalVarUserEmail
+  const user = state.GlobalVarUserEmail; // Get the logged-in user's email
 
   const [showModal, setShowModal] = useState(false); // Modal visibility state
   const [score, setScore] = useState(0); // Store score for display
   const [results, setResults] = useState([]); // Store results for display
   const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode
 
+  // Effect to fetch the quiz data from Firebase when the component mounts or quizId changes
   useEffect(() => {
     const quizRef = ref(database, `quizzes/${quizId}`);
     onValue(quizRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setQuiz(data);
+        setQuiz(data); // Set the fetched quiz data
       }
     });
   }, [quizId]);
 
+  // Effect to manage the countdown timer and trigger the next question when time runs out
   useEffect(() => {
     if (timeLeft <= 0) {
-      handleNextQuestion();
+      handleNextQuestion(); // Move to the next question if time runs out
     } else {
       const timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
+        setTimeLeft((prev) => prev - 1); // Decrement the time left
       }, 1000);
-      return () => clearInterval(timer);
+      return () => clearInterval(timer); // Cleanup interval on unmount
     }
   }, [timeLeft]);
 
+  // Function to handle moving to the next question
   const handleNextQuestion = () => {
-    const updatedAnswers = [...answers, selectedOption];
+    const updatedAnswers = [...answers, selectedOption]; // Store the selected option
     setAnswers(updatedAnswers);
 
+    // Check if there are more questions to display
     if (currentQuestionIndex < (quiz?.questions.length || 0) - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedOption(null); // Reset selected option for next question
-      setTimeLeft(60); // Reset timer for next question
+      setCurrentQuestionIndex(currentQuestionIndex + 1); // Move to the next question
+      setSelectedOption(null); // Reset selected option for the next question
+      setTimeLeft(60); // Reset timer for the next question
     } else {
+      // Calculate the score at the end of the quiz
       const correctAnswers = quiz.questions.map(q => q.correctOption);
       const calculatedScore = updatedAnswers.reduce((score, answer, index) => (
         answer === correctAnswers[index] ? score + 1 : score
       ), 0);
 
-      // Set score and results for the modal
+      // Prepare results for the modal
       const resultsArray = quiz.questions.map((question, index) => ({
         question: question.text,
         correctAnswer: question.options[question.correctOption],
@@ -62,9 +67,9 @@ const QuizPlay = ({ quizId }) => {
         isCorrect: updatedAnswers[index] === correctAnswers[index], // Check if the answer is correct
       }));
 
-      setScore(calculatedScore);
-      setResults(resultsArray);
-      setShowModal(true); // Show modal
+      setScore(calculatedScore); // Set the score state
+      setResults(resultsArray); // Set the results for the modal
+      setShowModal(true); // Show modal with results
 
       // Show confetti only if all answers are correct
       if (calculatedScore === quiz.questions.length) {
@@ -87,19 +92,23 @@ const QuizPlay = ({ quizId }) => {
     }
   };
 
+  // Function to handle option selection
   const handleOptionClick = (index) => {
-    setSelectedOption(index);
+    setSelectedOption(index); // Set the selected option
   };
 
+  // Function to handle back button click
   const handleBackClick = () => {
-    route('/main');
+    route('/main'); // Navigate back to the main page
   };
 
+  // Function to close the results modal and navigate back to the main page
   const closeModal = () => {
-    setShowModal(false);
-    route('/main'); // Redirect to main page after closing the modal
+    setShowModal(false); // Hide the modal
+    route('/main'); // Redirect to the main page
   };
 
+  // If quiz data is not yet loaded, display loading message
   if (!quiz) {
     return <p>Loading quiz...</p>;
   }
@@ -119,7 +128,7 @@ const QuizPlay = ({ quizId }) => {
                 ${selectedOption === index ? 'bg-green-500 text-white border-black' : 
                   selectedOption === null && index === selectedOption ? 'bg-blue-200 text-black border-black' : 
                   'bg-blue-300 text-black border-black hover:bg-blue-500 hover:text-white'}`} // Changed hover color to blue
-              onClick={() => handleOptionClick(index)}
+              onClick={() => handleOptionClick(index)} // Set the selected option on click
             >
               {option}
             </li>
@@ -145,29 +154,31 @@ const QuizPlay = ({ quizId }) => {
 
       {/* Custom Modal for Results */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-blue-50 rounded-lg p-6 w-11/12 md:w-3/4 lg:w-1/2">
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-blue-50 rounded-lg p-6 w-11/12 md:w-3/4 lg:w-1/2 max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold text-center mb-4 text-black">Results</h3>
-            <table className="min-w-full bg-blue-50 border border-black">
-              <thead>
-                <tr>
-                  <th className="py-2 border border-black text-center font-bold text-black">Question</th>
-                  <th className="py-2 border border-black text-center font-bold text-black">Correct Answer</th>
-                  <th className="py-2 border border-black text-center font-bold text-black">Your Answer</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((result, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="py-4 border text-left border-black text-black">{result.question}</td>
-                    <td className="py-4 border border-black text-black">{result.correctAnswer}</td>
-                    <td className={`py-4 border border-black font-bold text-black ${result.isCorrect ? 'text-green-500' : 'text-red-500'}`}>
-                      {result.userAnswer} {/* Display the actual answer text */}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-blue-50 border border-black">
+                <thead>
+                  <tr>
+                    <th className="py-2 border border-black text-center font-bold text-black">Question</th>
+                    <th className="py-2 border border-black text-center font-bold text-black">Correct Answer</th>
+                    <th className="py-2 border border-black text-center font-bold text-black">Your Answer</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {results.map((result, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-4 border text-left border-black text-black">{result.question}</td>
+                      <td className="py-4 border border-black text-black">{result.correctAnswer}</td>
+                      <td className={`py-4 border border-black font-bold text-black ${result.isCorrect ? 'text-green-500' : 'text-red-500'}`}>
+                        {result.userAnswer} {/* Display the actual answer text */}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="mt-4">
               <p className="text-lg font-bold text-black">Your Score: {score}/{quiz.questions.length}</p>
               <button 
@@ -182,6 +193,6 @@ const QuizPlay = ({ quizId }) => {
       )}
     </div>
   );
-};
+}
 
 export default QuizPlay;

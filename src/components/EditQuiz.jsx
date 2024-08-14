@@ -1,62 +1,67 @@
-//import { h } from 'preact';
-import { useState,useEffect } from 'preact/hooks';
-import { useGlobal } from '/src/context/GlobalContext'; 
-import { route } from 'preact-router';
-import { ref, onValue, remove } from 'firebase/database';
-import { database } from '../firebase'; // Import database from firebase.js
+import { useState, useEffect } from 'preact/hooks';
+import { useGlobal } from '/src/context/GlobalContext'; // Import useGlobal hook for accessing global variables
+import { route } from 'preact-router'; // Import route for navigation
+import { ref, onValue, remove } from 'firebase/database'; // Import necessary Firebase functions
+import { database } from '../firebase'; // Import Firebase database instance
 
 const EditQuiz = () => {
-  const [quizzes, setQuizzes] = useState([]);
-  const { state } = useGlobal(); // Access global state (global varibles can be set in /src/context/GlobalContext.jsx)
+  const [quizzes, setQuizzes] = useState([]); // State to store quizzes fetched from the database
+  const { state } = useGlobal(); // Access global state variables
+
+  // useEffect hook to check if the user is logged in
   useEffect(() => {
-    // Check if the user is Not logged in and redirect if so 
     if (!state.GlobalVarIsLoggedIn) {
-      route('/');
+      route('/'); // Redirect to the home page if the user is not logged in
     }
-  }, [state.GlobalVarIsLoggedIn]);
-  
+  }, [state.GlobalVarIsLoggedIn]); // Dependency array ensures this effect runs when the login state changes
+
+  // useEffect hook to fetch quizzes data from Firebase
   useEffect(() => {
     const fetchQuizzes = () => {
-      const quizzesRef = ref(database, 'quizzes');
+      const quizzesRef = ref(database, 'quizzes'); // Reference to the 'quizzes' node in the database
       onValue(quizzesRef, (snapshot) => {
-        const data = snapshot.val();
+        const data = snapshot.val(); // Retrieve quizzes data from the snapshot
         if (data) {
+          // Map over the data and set the quizzes state with the retrieved quizzes
           setQuizzes(Object.keys(data).map(key => ({ ...data[key], id: key })));
         } else {
-          setQuizzes([]);
+          setQuizzes([]); // If no data is found, set quizzes to an empty array
         }
       });
     };
 
-    fetchQuizzes();
-  }, []);
+    fetchQuizzes(); // Call the fetchQuizzes function to retrieve the data
+  }, []); // Empty dependency array ensures this effect runs only once after the component mounts
 
+  // Function to handle back button click
   const handleBackClick = () => {
-    route('/welcome');
+    route('/welcome'); // Navigate to the welcome page
   };
 
+  // Function to handle quiz deletion
   const handleDelete = async (id) => {
-  const confirmDelete = window.confirm("Are you sure you want to delete this quiz?");
-  if (confirmDelete) {
-    try {
-      const quizRef = ref(database, `quizzes/${id}`);
-      await remove(quizRef);
-      setQuizzes(quizzes.filter(quiz => quiz.id !== id));
-    } catch (error) {
-      console.error('Failed to delete quiz:', error);
+    const confirmDelete = window.confirm("Are you sure you want to delete this quiz?");
+    if (confirmDelete) {
+      try {
+        const quizRef = ref(database, `quizzes/${id}`); // Reference to the specific quiz to be deleted
+        await remove(quizRef); // Remove the quiz from the database
+        setQuizzes(quizzes.filter(quiz => quiz.id !== id)); // Update the quizzes state to remove the deleted quiz
+      } catch (error) {
+        console.error('Failed to delete quiz:', error); // Log any errors during deletion
+      }
+    } else {
+      console.log('Quiz deletion canceled'); // Log if deletion is canceled
     }
-  } else {
-    console.log('Quiz deletion canceled');
-  }
   };
-  
 
+  // Function to handle editing a quiz
   const handleEdit = (quizId) => {
-    route(`/change-quiz/${quizId}`);
+    route(`/change-quiz/${quizId}`); // Navigate to the ChangeQuiz component with the selected quizId
   };
 
+  // Render the component
   return (
-    <div className="flex flex-col items-center justify-center ">
+    <div className="flex flex-col items-center justify-center">
       <h2 className="text-5xl mb-5 shimmer">Edit Quizzes</h2>
       {quizzes.length > 0 ? (
         <div className="w-full max-w-lg mx-auto">
